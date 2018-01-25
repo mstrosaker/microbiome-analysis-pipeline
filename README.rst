@@ -10,10 +10,12 @@ Prerequisites
 -------------
 
 This pipline was used with:
+
 - qiime 1.9.1
 - pipits 1.4.1
 
 Additional prerequisites include:
+
 - uclust
 - muscle (multiple alignment)
 
@@ -37,5 +39,5 @@ format, for both 16S and ITS sequencing.
 
 #. Joining paired-end reads (script to be committed)
 #. Performing OTU picking to generate OTU tables (script to be committed)
-#. Run analyze_otu_table.sh to perform analysis on the generated OTU tables
+#. Run ``analyze_otu_table.sh`` to perform analysis on the generated OTU tables
 
