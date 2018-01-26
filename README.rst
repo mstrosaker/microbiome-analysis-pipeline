@@ -48,7 +48,7 @@ The directories for the samples must match the sample names in the metadata
 file.  All of the scripts in this repository should be run from the base
 (``project_name``) directory.
 
-** Step 1: Sample Preparation **
+**Step 1: Sample Preparation**
 
 Running ``prepare_samples.sh`` will generate FASTA files from the FASTQ files
 in the sample directories.  It uses PIPITS to reindex the reads, join the
@@ -68,7 +68,7 @@ This script should be run as follows:
 
 ``bash prepare_samples.sh <project_name> <metadata_file_name>``
 
-** Step 2: OTU Picking **
+**Step 2: OTU Picking**
 
 (script to be committed)
 
@@ -79,7 +79,7 @@ Uses QIIME for 16S, and PIPITS for ITS2.
 - A representative set is selected.
 - Taxonomy is assigned and added to the OTU table.
 
-** Step 3: OTU Table Analysis **
+**Step 3: OTU Table Analysis**
 
 Running ``analyze_otu_table.sh`` performs analysis on the generated OTU tables
 using the tools provided by QIIME.
