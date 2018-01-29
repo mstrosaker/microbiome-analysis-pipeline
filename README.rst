@@ -93,12 +93,12 @@ using the tools provided by QIIME.
 
 This script should be run as follows:
 
-``bash analyze_otu_table.sh <project_name> <16S|ITS> <metadata_file_name> <max_rarefraction_depth> <metadata_columns>``
+``bash analyze_otu_table.sh <project_name> <16S|ITS> <metadata_file_name> <max_rarefaction_depth> <metadata_columns>``
 
 It should be run twice, once for 16S and once for ITS.  The metadata_columns
 argument should be a comma separated list of column names from the metadata
 file that define groups for comparison, such as ``TreatmentState,Description``.
-To determine the value for rarefraction depth, run
+To determine the value for rarefaction depth, run
 ``biom summarize-table -i <biom_file>``, note the Min value (the smallest
 number of sequences in a sample), and choose a number somewhat smaller than
 that value.
