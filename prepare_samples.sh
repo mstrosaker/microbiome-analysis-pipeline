@@ -80,6 +80,22 @@ samples_ITS=()
 fasta_16S=()
 fasta_ITS=()
 
+function count_seqs() {
+    seq_type=$1
+    sample=$2
+    if [[ $seq_type == "16S" ]]; then
+        samples_16S+=("$sample")
+        num_16S_seqs=$(grep "^>" "fasta/${sample}_${seq_type}.fasta" | wc -l)
+        fasta_16S+=("${sample}/fasta/${sample}_${seq_type}.fasta")
+        echo "${num_16S_seqs} sequences"
+    else
+        samples_ITS+=("$sample")
+        num_ITS_seqs=$(grep "^>" "fasta/${sample}_${seq_type}.fasta" | wc -l)
+        fasta_ITS+=("${sample}/fasta/${sample}_${seq_type}.fasta")
+        echo "${num_ITS_seqs} sequences"
+    fi
+}
+
 for sample in "${samples[@]}"
 do
     if [[ ! -d "${sample}" ]]; then
@@ -92,6 +108,18 @@ do
         for seq_type in 16S ITS; do
 
             if [[ -d "fastq_${seq_type}" ]]; then
+
+                if [[ -e "fasta/${sample}_${seq_type}.fasta.gz" ]]; then
+                    echo "Already processed: ${sample} ${seq_type}"
+                    gunzip fasta/${sample}_${seq_type}.fasta.gz
+                    count_seqs ${seq_type} ${sample}
+                    continue
+                fi
+                if [[ -e "fasta/${sample}_${seq_type}.fasta" ]]; then
+                    echo "Already processed: ${sample} ${seq_type}"
+                    count_seqs ${seq_type} ${sample}
+                    continue
+                fi
 
                 echo "Processing sample ${sample} ${seq_type}"
 
@@ -118,20 +146,9 @@ EOF
                 mv update/combined_seqs.fna ./${sample}_${seq_type}.fasta
                 rm -rf update
                 rm mfile.txt
-
-                if [[ $seq_type == "16S" ]]; then
-                    samples_16S+=("$sample")
-                    num_16S_seqs=$(grep "^>" ${sample}_${seq_type}.fasta | wc -l)
-                    fasta_16S+=("${sample}/fasta/${sample}_${seq_type}.fasta")
-                    echo "${num_16S_seqs} sequences"
-                else
-                    samples_ITS+=("$sample")
-                    num_ITS_seqs=$(grep "^>" ${sample}_${seq_type}.fasta | wc -l)
-                    fasta_ITS+=("${sample}/fasta/${sample}_${seq_type}.fasta")
-                    echo "${num_ITS_seqs} sequences"
-                fi
-
                 cd ..
+
+                count_seqs ${seq_type} ${sample}
 
             fi
 
