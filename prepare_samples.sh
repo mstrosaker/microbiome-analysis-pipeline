@@ -16,6 +16,10 @@ if ! which align_seqs.py > /dev/null 2>&1; then
     exit 1;
 fi
 
+: "${GG_OTU_BASE:?The GG_OTU_BASE environment variable should be set to the base GreenGenes database path}"
+OTU_PERCENT=97
+GG_OTU_REP=${GG_OTU_BASE}/rep_set/${OTU_PERCENT}_otus.fasta
+
 if [[ $# -ne 2 ]]; then
     echo
     echo "This script requires two arguments:"
@@ -65,7 +69,7 @@ metadata_file=${results_dir}/scripts/${script_base}_metadata.txt
 
 # create a file to store sample statistics
 stats_file=${results_dir}/scripts/${project}_stats.txt
-echo "sample	16S_seqs	ITS_seqs" > ${stats_file}
+echo "sample	16S_seqs	16S_chimeras	ITS_seqs" > ${stats_file}
 
 # read in the sample names from the metadata file
 samples=( $(awk '{print $1}' ${metadata_file}) )
@@ -80,19 +84,23 @@ samples_ITS=()
 fasta_16S=()
 fasta_ITS=()
 
+declare -A seqs_16S
+declare -A seqs_16S_chimeras
+declare -A seqs_ITS
+
 function count_seqs() {
     seq_type=$1
     sample=$2
     if [[ $seq_type == "16S" ]]; then
         samples_16S+=("$sample")
-        num_16S_seqs=$(grep "^>" "fasta/${sample}_${seq_type}.fasta" | wc -l)
+        seqs_16S[${sample}]=$(grep "^>" "fasta/${sample}_${seq_type}.fasta" | wc -l)
         fasta_16S+=("${sample}/fasta/${sample}_${seq_type}.fasta")
-        echo "${num_16S_seqs} sequences"
+        echo "${seqs_16S[$sample]} sequences"
     else
         samples_ITS+=("$sample")
-        num_ITS_seqs=$(grep "^>" "fasta/${sample}_${seq_type}.fasta" | wc -l)
+        seqs_ITS[${sample}]=$(grep "^>" "fasta/${sample}_${seq_type}.fasta" | wc -l)
         fasta_ITS+=("${sample}/fasta/${sample}_${seq_type}.fasta")
-        echo "${num_ITS_seqs} sequences"
+        echo "${seqs_ITS[$sample]} sequences"
     fi
 }
 
@@ -102,8 +110,9 @@ do
         echo "No directory for sample ${sample}"
     else
         cd $sample
-        num_16S_seqs="NA"
-        num_ITS_seqs="NA"
+        seqs_16S[$sample]="NA"
+        seqs_16S_chimeras[$sample]="NA"
+        seqs_ITS[$sample]="NA"
 
         for seq_type in 16S ITS; do
 
@@ -155,7 +164,7 @@ EOF
         done
 
         cd ..
-        echo "${sample}	${num_16S_seqs}	${num_ITS_seqs}" >> ${stats_file}
+        #echo "${sample}	${num_16S_seqs}	${num_ITS_seqs}" >> ${stats_file}
     fi
 done
 echo
@@ -164,7 +173,6 @@ echo
 if [[ ${#fasta_16S[@]} -gt 0 ]]; then
     cat ${fasta_16S[@]} > ${results_dir}/${project}_16S.fasta
     nseqs=$(grep "^>" ${results_dir}/${project}_16S.fasta | wc -l)
-    gzip ${results_dir}/${project}_16S.fasta
 fi
 echo "${#samples_16S[@]} samples with 16S data"
 echo "samples: ${samples_16S[@]}"
@@ -173,7 +181,6 @@ echo "${nseqs} 16S sequences total in ${results_dir}/${project}_16S.fasta"
 if [[ ${#fasta_ITS[@]} -gt 0 ]]; then
     cat ${fasta_ITS[@]} > ${results_dir}/${project}_ITS.fasta
     nseqs=$(grep "^>" ${results_dir}/${project}_ITS.fasta | wc -l)
-    gzip ${results_dir}/${project}_ITS.fasta
 fi
 echo "${#samples_ITS[@]} samples with ITS data"
 echo "samples: ${samples_ITS[@]}"
@@ -188,4 +195,49 @@ do
         cd ../..
     fi
 done
+
+# do chimera detection on the concatenated FASTA files
+# currently only 16S; do we need to detect chimeras in ITS sequences?
+function identify_chimeras() {
+    seq_type=$1
+
+    echo
+    echo "Identifying chimeric sequences in ${seq_type} sequences"
+
+    mkdir temp
+    identify_chimeric_seqs.py -i ${results_dir}/${project}_${seq_type}.fasta -m usearch61 -o temp/usearch_checked_chimeras -r ${GG_OTU_REP}
+
+    n_chimeras=$(cat temp/usearch_checked_chimeras/chimeras.txt | wc -l)
+    echo "    - $n_chimeras chimeric sequences identified"
+    cp temp/usearch_checked_chimeras/chimeras.txt ${results_dir}/${seq_type}_chimeras.txt
+
+    filter_fasta.py -f ${results_dir}/${project}_${seq_type}.fasta -o ${results_dir}/${project}_${seq_type}_chimeras_filtered.fasta -s temp/usearch_checked_chimeras/chimeras.txt -n
+
+    gzip ${results_dir}/${project}_${seq_type}.fasta
+    gzip ${results_dir}/${project}_${seq_type}_chimeras_filtered.fasta
+    rm -rf temp
+}
+
+if [[ ${#fasta_16S[@]} -gt 0 ]]; then
+    identify_chimeras "16S"
+fi
+
+gzip ${results_dir}/${project}_ITS.fasta
+
+for sample in "${samples_16S[@]}"
+do
+    seqs_16S_chimeras[${sample}]=$(grep "^${sample}_" "${results_dir}/16S_chimeras.txt" | wc -l)
+done
+
+# write out the statistics file
+for sample in "${samples[@]}"
+do
+    if [[ -d "${sample}" ]]; then
+        echo "${sample}	${seqs_16S[$sample]}	${seqs_16S_chimeras[$sample]}	${seqs_ITS[$sample]}" >> ${stats_file}
+    fi
+done
+
+echo
+column -t ${stats_file}
+echo
 
