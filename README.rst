@@ -59,7 +59,9 @@ to ensure that the sequences are named appropriately in the FASTA files.
 A ``fasta`` directory will be created in each sample directory with the 16S and
 ITS FASTA files.  A ``prepared_fasta_<date>`` directory will be created, which
 contains a FASTA file that incorporates all 16S sequences from all samples,
-and one that incorporates all ITS sequences.  All FASTA files are gzipped.
+and one that incorporates all ITS sequences.  Chimera detection is performed
+on the 16S sequences, and a FASTA file is created containing all sequences
+that were not identified as chimeric.  All FASTA files are gzipped.
 The ``scripts`` subdirectory includes the data necessary to reproduce the run,
 a log file that contains the script output, and a stats file that lists the
 number of sequences in the FASTA file(s) for each sample.
@@ -70,14 +72,18 @@ This script should be run as follows:
 
 **Step 2: OTU Picking**
 
-(script to be committed)
+Running ``generate_otus.sh`` will generate OTU tables from the FASTA files
+generated in the prior step.  This script uses QIIME for 16S, and PIPITS for
+ITS2.  The OTU tables are in the BIOM format.  A representative set is
+selected, and taxonomy is assigned and added to the OTU table.
 
-Uses QIIME for 16S, and PIPITS for ITS2.
+This script should be run separately for 16S and ITS, and for closed reference
+and open reference, should both be desired.  This script should be run as
+follows:
 
-- Chimeric sequences are identified and removed.
-- OTU picking is run, and an OTU table is created in the biom format.
-- A representative set is selected.
-- Taxonomy is assigned and added to the OTU table.
+``bash generate_otus.sh <project_name> <16S|ITS> <openref|closedref> <prepare_samples_output_dir>``
+
+where the last argument is the directory created by the prior step.
 
 **Step 3: OTU Table Analysis**
 
