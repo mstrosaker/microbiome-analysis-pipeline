@@ -107,14 +107,17 @@ fi
 stats_file=${results_dir}/scripts/${project}_${seq_type}_pick_otus_${ref}_stats.txt
 
 if [[ $seq_type == "16S" ]]; then
-    #infile=${indir}/${project}_16S_chimeras_filtered.fasta
-    infile=${indir}/${project}_16S.fasta
+    infile=${indir}/${project}_16S_chimeras_filtered.fasta
+    #infile=${indir}/${project}_16S.fasta
     mkdir temp
 else
     infile=${indir}/${project}_ITS.fasta
 fi
 
 gunzip ${infile}.gz
+cp ${infile} ${indir}/${project}_16S.fasta
+gzip ${infile}
+infile=${indir}/${project}_16S.fasta
 
 n_seqs=$(grep ">" $infile | wc -l)
 echo "$n_seqs input sequences"
@@ -174,12 +177,10 @@ else # ITS
 
 fi
 
-gzip ${infile}
-
 # write out the statistics file
-biom summarize-table -i ${otu_table} >> ${stats_file}
+biom summarize-table -i ${results_dir}/${project}_16S_otu_table.biom >> ${stats_file}
 
 echo
-biom summarize-table -i ${otu_table}
+biom summarize-table -i ${results_dir}/${project}_16S_otu_table.biom
 echo
 

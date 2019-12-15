@@ -19,6 +19,8 @@ fi
 : "${GG_OTU_BASE:?The GG_OTU_BASE environment variable should be set to the base GreenGenes database path}"
 OTU_PERCENT=97
 GG_OTU_REP=${GG_OTU_BASE}/rep_set/${OTU_PERCENT}_otus.fasta
+# like:
+# export GG_OTU_BASE=/home/mstrosaker/gg/gg_13_8_otus
 
 if [[ $# -ne 2 ]]; then
     echo
@@ -36,7 +38,7 @@ script_base=${script%.*}
 
 date=$(date +%Y%m%d)
 
-results_dir=prepared_fasta_${date}
+results_dir=${project}_prepared_fasta_${date}
 
 if [[ -e ${results_dir} ]]; then
     echo
@@ -204,18 +206,19 @@ function identify_chimeras() {
     echo
     echo "Identifying chimeric sequences in ${seq_type} sequences"
 
-    mkdir temp
-    identify_chimeric_seqs.py -i ${results_dir}/${project}_${seq_type}.fasta -m usearch61 -o temp/usearch_checked_chimeras -r ${GG_OTU_REP}
+    mkdir ${results_dir}/temp
+    identify_chimeric_seqs.py -i ${results_dir}/${project}_${seq_type}.fasta -m usearch61 -o ${results_dir}/temp/usearch_checked_chimeras -r ${GG_OTU_REP}
 
-    n_chimeras=$(cat temp/usearch_checked_chimeras/chimeras.txt | wc -l)
+    chimera_file=${results_dir}/temp/usearch_checked_chimeras/chimeras.txt
+    n_chimeras=$(cat ${chimera_file} | wc -l)
     echo "    - $n_chimeras chimeric sequences identified"
-    cp temp/usearch_checked_chimeras/chimeras.txt ${results_dir}/${seq_type}_chimeras.txt
+    cp ${chimera_file} ${results_dir}/${seq_type}_chimeras.txt
 
-    filter_fasta.py -f ${results_dir}/${project}_${seq_type}.fasta -o ${results_dir}/${project}_${seq_type}_chimeras_filtered.fasta -s temp/usearch_checked_chimeras/chimeras.txt -n
+    filter_fasta.py -f ${results_dir}/${project}_${seq_type}.fasta -o ${results_dir}/${project}_${seq_type}_chimeras_filtered.fasta -s ${chimera_file} -n
 
     gzip ${results_dir}/${project}_${seq_type}.fasta
     gzip ${results_dir}/${project}_${seq_type}_chimeras_filtered.fasta
-    rm -rf temp
+    rm -rf ${results_dir}/temp
 }
 
 if [[ ${#fasta_16S[@]} -gt 0 ]]; then

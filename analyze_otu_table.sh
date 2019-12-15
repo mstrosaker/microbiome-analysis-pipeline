@@ -5,6 +5,7 @@
 # This script takes five arguments:
 #    - the project name
 #    - either "16S" or "ITS" (no quotes)
+#    - directory containing the output of generate_otus.sh
 #    - metadata filename
 #    - the maximum rarefaction depth
 #    - a comma-separated list of columns in the metadata file
@@ -24,11 +25,12 @@ if ! which align_seqs.py > /dev/null 2>&1; then
     exit 1;
 fi
 
-if [[ $# -ne 5 ]]; then
+if [[ $# -ne 6 ]]; then
     echo
     echo "This script requires five arguments:"
     echo "  - the project name"
     echo "  - the type of sequences (either 16S or ITS)"
+    echo "  - the directory containing the output from generate_otus.sh"
     echo "  - the filename of the metadata file"
     echo "  - the maximum rarefaction depth (as an integer) *"
     echo "  - a comma-separated list of columns in the metadata file, for"
@@ -43,15 +45,15 @@ fi
 
 project=$1
 otu_type=$2
-metadata_file=$3
-max_rare_depth=$4
-column_list=$5
+otu_dir=$3
+metadata_file=$4
+max_rare_depth=$5
+column_list=$6
 script=`basename $0`
 script_base=${script%.*}
 
 date=$(date +%Y%m%d)
 
-otu_dir=OTUs_${otu_type}
 biom_file=${project}_${otu_type}_otu_table.biom
 if [[ ${otu_type} == "ITS" ]]; then
     rep_set1="repseqs.fasta"
@@ -61,7 +63,7 @@ else
     rep_set2="rep_set"
 fi
 rep_set_file=${project}_${otu_type}_${rep_set1}
-results_dir=results_${otu_type}_${date}
+results_dir=${project}_results_${otu_type}_${date}
 
 if [[ -e ${results_dir} ]]; then
     echo
