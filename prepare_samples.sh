@@ -98,6 +98,8 @@ function count_seqs() {
         seqs_16S[${sample}]=$(grep "^>" "fasta/${sample}_${seq_type}.fasta" | wc -l)
         fasta_16S+=("${sample}/fasta/${sample}_${seq_type}.fasta")
         echo "${seqs_16S[$sample]} sequences"
+
+        seqs_16S_chimeras[${sample}]=$(cat "fasta/${sample}_${seq_type}_chimeras.txt" | wc -l)
     else
         samples_ITS+=("$sample")
         seqs_ITS[${sample}]=$(grep "^>" "fasta/${sample}_${seq_type}.fasta" | wc -l)
@@ -105,6 +107,11 @@ function count_seqs() {
         echo "${seqs_ITS[$sample]} sequences"
     fi
 }
+
+for sample in "${samples_16S[@]}"
+do
+    seqs_16S_chimeras[${sample}]=$(grep "^${sample}_" "${results_dir}/16S_chimeras.txt" | wc -l)
+done
 
 for sample in "${samples[@]}"
 do
@@ -159,6 +166,29 @@ EOF
                 rm mfile.txt
                 cd ..
 
+		# do chimera detection (per sample rather than the concatenated
+                # multifasta file)
+                if [[ $seq_type == "16S" ]]; then
+                    cd fasta
+                    echo "Identifying chimeric sequences"
+
+                    mkdir temp
+                    identify_chimeric_seqs.py -i ${sample}_${seq_type}.fasta -m usearch61 -o temp/usearch_checked_chimeras -r ${GG_OTU_REP}
+
+                    chimera_file=temp/usearch_checked_chimeras/chimeras.txt
+                    n_chimeras=$(cat ${chimera_file} | wc -l)
+                    echo "    - $n_chimeras chimeric sequences identified"
+                    cp ${chimera_file} ./${sample}_${seq_type}_chimeras.txt
+
+                    filter_fasta.py -f ${sample}_${seq_type}.fasta -o ${sample}_${seq_type}_chimeras_filtered.fasta -s ${chimera_file} -n
+
+                    mv ${sample}_${seq_type}.fasta ${sample}_${seq_type}_unfiltered.fasta
+                    gzip ${sample}_${seq_type}_unfiltered.fasta
+                    mv ${sample}_${seq_type}_chimeras_filtered.fasta ${sample}_${seq_type}.fasta
+                    rm -rf temp
+                    cd ..
+                fi
+
                 count_seqs ${seq_type} ${sample}
 
             fi
@@ -172,6 +202,7 @@ done
 echo
 
 # concatenate the individual sample FASTA files into single, large FASTA files
+nseqs=0
 if [[ ${#fasta_16S[@]} -gt 0 ]]; then
     cat ${fasta_16S[@]} > ${results_dir}/${project}_16S.fasta
     nseqs=$(grep "^>" ${results_dir}/${project}_16S.fasta | wc -l)
@@ -180,6 +211,7 @@ echo "${#samples_16S[@]} samples with 16S data"
 echo "samples: ${samples_16S[@]}"
 echo "${nseqs} 16S sequences total in ${results_dir}/${project}_16S.fasta"
 
+nseqs=0
 if [[ ${#fasta_ITS[@]} -gt 0 ]]; then
     cat ${fasta_ITS[@]} > ${results_dir}/${project}_ITS.fasta
     nseqs=$(grep "^>" ${results_dir}/${project}_ITS.fasta | wc -l)
@@ -198,39 +230,7 @@ do
     fi
 done
 
-# do chimera detection on the concatenated FASTA files
-# currently only 16S; do we need to detect chimeras in ITS sequences?
-function identify_chimeras() {
-    seq_type=$1
-
-    echo
-    echo "Identifying chimeric sequences in ${seq_type} sequences"
-
-    mkdir ${results_dir}/temp
-    identify_chimeric_seqs.py -i ${results_dir}/${project}_${seq_type}.fasta -m usearch61 -o ${results_dir}/temp/usearch_checked_chimeras -r ${GG_OTU_REP}
-
-    chimera_file=${results_dir}/temp/usearch_checked_chimeras/chimeras.txt
-    n_chimeras=$(cat ${chimera_file} | wc -l)
-    echo "    - $n_chimeras chimeric sequences identified"
-    cp ${chimera_file} ${results_dir}/${seq_type}_chimeras.txt
-
-    filter_fasta.py -f ${results_dir}/${project}_${seq_type}.fasta -o ${results_dir}/${project}_${seq_type}_chimeras_filtered.fasta -s ${chimera_file} -n
-
-    gzip ${results_dir}/${project}_${seq_type}.fasta
-    gzip ${results_dir}/${project}_${seq_type}_chimeras_filtered.fasta
-    rm -rf ${results_dir}/temp
-}
-
-if [[ ${#fasta_16S[@]} -gt 0 ]]; then
-    identify_chimeras "16S"
-fi
-
 gzip ${results_dir}/${project}_ITS.fasta
-
-for sample in "${samples_16S[@]}"
-do
-    seqs_16S_chimeras[${sample}]=$(grep "^${sample}_" "${results_dir}/16S_chimeras.txt" | wc -l)
-done
 
 # write out the statistics file
 for sample in "${samples[@]}"
